@@ -13,22 +13,24 @@ namespace Task2Scripts
         [SerializeField] private Transform dialogueContainer;
         [SerializeField] private GameObject dialoguePrefabLeft;
         [SerializeField] private GameObject dialoguePrefabRight;
-        private List<string> _emojiList = new List<string>();
-
-        void Start()
+        private readonly List<string> _emojiList = new List<string>();
+        private readonly Dictionary<string, Sprite> _imageCache = new Dictionary<string, Sprite>();
+        
+        
+        private void Start()
         {
             StartCoroutine(FetchDialogue());
         }
 
-        IEnumerator FetchDialogue()
+        private IEnumerator FetchDialogue()
         {
-            UnityWebRequest request = UnityWebRequest.Get(apiUrl);
+            var request = UnityWebRequest.Get(apiUrl);
             yield return request.SendWebRequest();
 
             if (request.result == UnityWebRequest.Result.Success)
             {
                 // Deserialize JSON directly into the DialogueData class
-                DialogueData data = JsonUtility.FromJson<DialogueData>(request.downloadHandler.text);
+                var data = JsonUtility.FromJson<DialogueData>(request.downloadHandler.text);
                 StoreEmojiData(data.emojies);
                 StartCoroutine(DisplayDialogue(data.dialogue, data.avatars));
             }
@@ -38,7 +40,7 @@ namespace Task2Scripts
             }
         }
 
-        void StoreEmojiData(List<EmojiData> emojies)
+        private void StoreEmojiData(List<EmojiData> emojies)
         {
             foreach (var emoji in emojies)
             {
@@ -46,7 +48,7 @@ namespace Task2Scripts
             }
         }
 
-        IEnumerator DisplayDialogue(List<DialogueEntry> dialogue, List<AvatarData> avatars)
+        private IEnumerator DisplayDialogue(List<DialogueEntry> dialogue, List<AvatarData> avatars)
         {
             foreach (var entry in dialogue)
             {
@@ -57,16 +59,19 @@ namespace Task2Scripts
                     prefab = dialoguePrefabRight;
                 }
                 
-                var dialogueEntry = Instantiate(prefab, dialogueContainer).GetComponent<DialogueEntryView>();
-
                 // Process text with emojis
                 var processedText = ReplaceEmojis(entry.text);
             
-                yield return StartCoroutine(LoadImage(avatar?.url, (avatarSprite) => dialogueEntry.Display(processedText, avatarSprite, entry.name)));
+                yield return StartCoroutine(LoadImage(avatar?.url, (avatarSprite) =>
+                {   
+                    var dialogueEntry = Instantiate(prefab, dialogueContainer).GetComponent<DialogueEntryView>();
+                    dialogueEntry.Display(processedText, avatarSprite, entry.name);
+                }));
+                yield return new WaitForSeconds(2f); // wait between each entry to make it prettier
             }
         }
 
-        string ReplaceEmojis(string text)
+        private string ReplaceEmojis(string text)
         {
             var matches = Regex.Matches(text, @"{([^}]+)}");
 
@@ -86,8 +91,14 @@ namespace Task2Scripts
             return text;
         }
 
-        IEnumerator LoadImage(string url, Action<Sprite> callback)
+        private IEnumerator LoadImage(string url, Action<Sprite> callback)
         {
+            if (_imageCache.ContainsKey(url))
+            {
+                callback?.Invoke(_imageCache[url]);
+                yield break;
+            }
+            
             var request = UnityWebRequestTexture.GetTexture(url);
             yield return request.SendWebRequest();
 
@@ -95,6 +106,7 @@ namespace Task2Scripts
             {
                 var texture = ((DownloadHandlerTexture)request.downloadHandler).texture;
                 var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one * 0.5f);
+                _imageCache[url] = sprite;
                 callback?.Invoke(sprite);
             }
             else

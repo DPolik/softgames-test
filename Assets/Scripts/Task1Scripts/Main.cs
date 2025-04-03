@@ -1,70 +1,80 @@
 using System.Collections;
-using Unity.VisualScripting;
 using UnityEngine;
 
-public class Main : MonoBehaviour
+namespace Task1Scripts
 {
-    [SerializeField] private CardStack[] cardStacks;
-    [SerializeField] private GameObject cardPrefab;
-    [SerializeField] private int numberOfCards = 144;
-    [SerializeField] private float moveTime = .5f; // Animation duration
-    [SerializeField] private float waitTime = 1f; // Time for next card to pop
-    private int _currentStackIndex;
-
-    private void Start()
+    public class Main : MonoBehaviour
     {
-        _currentStackIndex = Random.Range(0, cardStacks.Length);
-        cardStacks[_currentStackIndex].InitializeStack(numberOfCards, cardPrefab);
-        StartCoroutine(MoveCards());
-    }
+        [SerializeField] private CardStack[] cardStacks;
+        [SerializeField] private GameObject cardPrefab;
+        [SerializeField] private int numberOfCards = 144;
+        [SerializeField] private float moveTime = .5f; // Animation duration
+        [SerializeField] private float waitTime = 1f; // Time for next card to pop
+        private int _currentStackIndex;
 
-    private IEnumerator MoveCards()
-    {
-        var nextStackIndex = _currentStackIndex + 1;
-        if (nextStackIndex >= cardStacks.Length)
+        private void Start()
         {
-            nextStackIndex = 0;
+            _currentStackIndex = Random.Range(0, cardStacks.Length);
+            cardStacks[_currentStackIndex].InitializeStack(numberOfCards, cardPrefab);
+            StartCoroutine(MoveCards());
         }
-        
-        while (true)
+
+        private IEnumerator MoveCards()
         {
-            yield return new WaitForSeconds(waitTime);
-            
-            if (cardStacks[_currentStackIndex].IsEmpty)
+            var nextStackIndex = _currentStackIndex + 1;
+            if (nextStackIndex >= cardStacks.Length)
             {
-                cardStacks[nextStackIndex].SlideTopCard();
-                _currentStackIndex = nextStackIndex;
-                nextStackIndex = _currentStackIndex + 1;
-                if (nextStackIndex >= cardStacks.Length)
+                nextStackIndex = 0;
+            }
+        
+            while (true)
+            {
+                yield return new WaitForSeconds(waitTime);
+            
+                if (cardStacks[_currentStackIndex].IsEmpty)
                 {
-                    nextStackIndex = 0;
+                    cardStacks[nextStackIndex].SlideTopCard();
+                    _currentStackIndex = nextStackIndex;
+                    nextStackIndex = _currentStackIndex + 1;
+                    if (nextStackIndex >= cardStacks.Length)
+                    {
+                        nextStackIndex = 0;
+                    }
+
+                    if (moveTime > waitTime) // wait until the animation is done
+                    {
+                        yield return new WaitForSeconds(moveTime - waitTime);
+                    }
                 }
+            
+                var topCard = cardStacks[_currentStackIndex].PopCard();
+                StartCoroutine(AnimateMove(topCard, cardStacks[nextStackIndex])); 
+            }
+        }
+
+        private IEnumerator AnimateMove(GameObject card, CardStack targetStack)
+        {
+            card.transform.parent = targetStack.transform;
+            var startPos = card.transform.position;
+            // end position will be the stack position (with z adjusted) plus the offset if there are cards already
+            var endPos = targetStack.transform.position - Vector3.forward * ((targetStack.transform.childCount-1) * 0.1f);
+            if (!targetStack.IsEmpty)
+            {
+                endPos += targetStack.TopCardDisplacement;
             }
             
-            var topCard = cardStacks[_currentStackIndex].PopCard();
-            StartCoroutine(AnimateMove(topCard, cardStacks[nextStackIndex])); 
-        }
-    }
+            targetStack.PushCard(card);
 
-    private IEnumerator AnimateMove(GameObject card, CardStack targetStack)
-    {
-        card.transform.parent = targetStack.transform;
-        var startPos = card.transform.position;
-        var endPos = targetStack.transform.position - Vector3.forward * ((targetStack.transform.childCount-1) * 0.1f);
-        if (!targetStack.IsEmpty)
-        {
-            endPos += targetStack.TopCardDisplacement;
-        }
+            var elapsedTime = 0f;
+            while (elapsedTime < moveTime)
+            {
+                elapsedTime += Time.deltaTime;
+                card.transform.position = Vector3.Lerp(startPos, endPos, elapsedTime / moveTime);
+                yield return null;
+            }
 
-        float elapsedTime = 0f;
-        while (elapsedTime < moveTime)
-        {
-            elapsedTime += Time.deltaTime;
-            card.transform.position = Vector3.Lerp(startPos, endPos, elapsedTime / moveTime);
-            yield return null;
+            card.transform.position = endPos;
+            targetStack.CheckVisibility(card);
         }
-
-        card.transform.position = endPos;
-        targetStack.PushCard(card);
     }
 }

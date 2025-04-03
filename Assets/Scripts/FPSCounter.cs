@@ -6,14 +6,14 @@ public class FPSCounter : MonoBehaviour
 {
     [SerializeField] private TMP_Text fpsText;
 
-    private static FPSCounter instance;
+    private static FPSCounter _instance;
     private float deltaTime = 0.0f;
 
     private void Awake()
     {
-        if (instance == null)
+        if (_instance == null)
         {
-            instance = this;
+            _instance = this;
             DontDestroyOnLoad(gameObject);
         }
         else
@@ -25,7 +25,7 @@ public class FPSCounter : MonoBehaviour
         fpsText = GetComponentInChildren<TMP_Text>();
         if (fpsText == null)
         {
-            Debug.LogError("FPSCounter script must be attached to a GameObject with a Text component.");
+            Debug.LogError("FPSCounter script must be attached to a GameObject with a TMP_Text component.");
             Destroy(gameObject);
         }
     }
@@ -33,7 +33,7 @@ public class FPSCounter : MonoBehaviour
     private void Update()
     {
         deltaTime += (Time.deltaTime - deltaTime) * 0.1f;
-        float fps = 1.0f / deltaTime;
+        var fps = 1.0f / deltaTime;
         fpsText.text = $"FPS: {Mathf.Ceil(fps)}";
     }
 }

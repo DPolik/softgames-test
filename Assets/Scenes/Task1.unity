@@ -574,7 +574,7 @@ MonoBehaviour:
   - {fileID: 1161228885}
   cardPrefab: {fileID: 4450167289568857236, guid: 73a27d95919094154b778a724cba63fb, type: 3}
   numberOfCards: 144
-  moveTime: 0.5
+  moveTime: 2
   waitTime: 1
 --- !u!4 &1887069189
 Transform:
